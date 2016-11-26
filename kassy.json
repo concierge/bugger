@@ -1,0 +1,11 @@
+{
+  "name": "bugger",
+  "version": "1.0.0",
+  "description": "Waits for and retreives UC exam results when they become avalible.",
+  "startup": "main.js",
+  "command": "bugger",
+  "author": "Matthew Knox",
+  "license": "MIT",
+  "long-name":"big-ugly-getter-gadget-for-elucidating-results",
+  "help": []
+}
