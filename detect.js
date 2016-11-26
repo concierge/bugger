@@ -1,16 +1,20 @@
 let request = require('request'),
     events = require('events'),
-    htmlEntities = require('html-entities').AllHtmlEntities;
+    htmlEntities = require('html-entities').AllHtmlEntities,
+    selector = require('./selector.js');
 
 request = request.defaults({jar: true});
 
 class ExamWaiter extends events.EventEmitter {
-    constructor(username, password, timeout = 300000) {
+    constructor(username, password, repeatUntilFound = false, shortTimeout = 300000, longTimeout = 10800000) {
         super();
-        this._timeout = timeout;
         this._timerInstance = null;
         this._username = username;
         this._password = password;
+        this._repeat = repeatUntilFound;
+        this._longTimeout = longTimeout;
+        this._shortTimeout = shortTimeout;
+        this._timeout = repeatUntilFound ? longTimeout : shortTimeout;
     }
 
     static _makeReq(url) {
@@ -60,12 +64,18 @@ class ExamWaiter extends events.EventEmitter {
         this.emit('poll');
         this._timerInstance = setTimeout(this._poll, this._timeout);
         const ssoRegex = /SSO' value='([^']+)/igm;
+        const self = this;
 
         ExamWaiter._makeReq('https://myucgate.canterbury.ac.nz/ShibGateway.aspx?dest=ucsw&page=INTTRNS', 'https://login.canterbury.ac.nz/idp/profile/SAML2/Redirect/SSO', (response, body) => {
             let ssoValue = `SSO=${encodeURIComponent(ssoRegex.exec(body)[1])}`;
             ExamWaiter._makeReq('https://myuc.canterbury.ac.nz/ucsms/sso_login.aspx', 'https://myucgate.canterbury.ac.nz/ShibGateway.aspx?dest=ucsw&page=INTTRNS', ssoValue, () => {
                 ExamWaiter._makeReq('https://myuc.canterbury.ac.nz/ucsms/Student/InternalStudentTranscript.aspx', 'https://myucgate.canterbury.ac.nz/ShibGateway.aspx?dest=ucsw&page=INTTRNS', (response, body) => {
                     if (body.indexOf('myUC is temporarily unavailable') >= 0) {
+                        if (self._timeout !== self._shortTimeout) {
+                            self._timeout = self._shortTimeout;
+                            clearTimeout(self._timerInstance);
+                            self._timerInstance = setTimeout(self._poll, self._timeout);
+                        }
                         return;
                     }
 
@@ -83,6 +93,13 @@ class ExamWaiter extends events.EventEmitter {
                             name: matches[2],
                             points: parseFloat(matches[3]),
                             mark: matches[4]
+                        }
+                    }
+                    if (self._repeat) {
+                        const filt = selector(results);
+                        const k = Object.keys(filt);
+                        if (k.length > 0 && filt[k[0]].mark === 'Enrolled') {
+                            return;
                         }
                     }
                     this.results = results;

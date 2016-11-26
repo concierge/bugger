@@ -1,10 +1,13 @@
-﻿let select = (obj) => {
+﻿let select = (obj, searchYear, semester) => {
     let date = new Date(),
         month = date.getMonth() + 1,
         year = (date.getFullYear() % 100).toString();
 
     let searchArray;
-    if (month > 8) {
+    if (semester) {
+        searchArray = [searchYear + 'S' + semester, searchYear + 'W'];
+    }
+    else if (month > 8) {
         searchArray = [year + 'S2', year + 'W'];
     } else {
         searchArray = [year + 'S1'];
