@@ -1,9 +1,7 @@
-let request = require('request'),
+const request = require('request'),
     events = require('events'),
     htmlEntities = require('html-entities').AllHtmlEntities,
     selector = require('./selector.js');
-
-request = request.defaults({jar: true});
 
 class ExamWaiter extends events.EventEmitter {
     constructor(username, password, repeatUntilFound = false, shortTimeout = 300000, longTimeout = 10800000) {
@@ -15,13 +13,15 @@ class ExamWaiter extends events.EventEmitter {
         this._longTimeout = longTimeout;
         this._shortTimeout = shortTimeout;
         this._timeout = repeatUntilFound ? longTimeout : shortTimeout;
+        this._jar = request.jar();
     }
 
     static _makeReq(url) {
         let callback = arguments[arguments.length - 1],
             options = {
                 url: url,
-                headers: {}
+                headers: {},
+                jar: this._jar
             };
 
         if (arguments.length === 3) {
@@ -34,7 +34,7 @@ class ExamWaiter extends events.EventEmitter {
             options.headers['Content-Type'] = 'application/x-www-form-urlencoded';
         }
 
-        request(options, function (error, response, body) {
+        request(options, (error, response, body) => {
             if (error) {
                 return null;
             }
