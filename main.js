@@ -12,7 +12,7 @@ const getResults = (year, semester, api, event) => {
     const waiter = new ExamWaiter(exports.config[event.sender_id].username, exports.config[event.sender_id].password, !(year && semester));
     waiter.on('results', (results) => {
         if (!api) {
-            api = platform.getIntegrationApis()[exports.config[event.sender_id].source];
+            api = exports.platform.getIntegrationApis()[exports.config[event.sender_id].source];
         }
         const actualResults = selector(results, year, semester);
         let res = '--------------------------------------------------------\nMark\tCourse\n';
@@ -28,7 +28,7 @@ const getResults = (year, semester, api, event) => {
 
     waiter.on('loginFailure', () => {
         if (!api) {
-            api = platform.getIntegrationApis()[exports.config[event.sender_id].source];
+            api = exports.platform.getIntegrationApis()[exports.config[event.sender_id].source];
         }
         api.sendMessage(`Hmmmm.... ${event.sender_name}, either your login details were incorrect or something is broken.`, event.thread_id);
     });
