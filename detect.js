@@ -16,12 +16,13 @@ class ExamWaiter extends events.EventEmitter {
         this._jar = request.jar();
     }
 
-    static _makeReq(url) {
-        let callback = arguments[arguments.length - 1],
+    _makeReq(url) {
+        const callback = arguments[arguments.length - 1],
+            self = this,
             options = {
                 url: url,
                 headers: {},
-                jar: this._jar
+                jar: self._jar
             };
 
         if (arguments.length === 3) {
@@ -43,7 +44,7 @@ class ExamWaiter extends events.EventEmitter {
                 redirect = redirectRegex.exec(body);
 
             if (redirect && redirect.length === 3) {
-                return ExamWaiter._makeReq(redirect[2], url, callback);
+                return this._makeReq(redirect[2], url, callback);
             }
 
             return callback(response, body);
@@ -66,10 +67,10 @@ class ExamWaiter extends events.EventEmitter {
         const ssoRegex = /SSO' value='([^']+)/igm;
         const self = this;
 
-        ExamWaiter._makeReq('https://myucgate.canterbury.ac.nz/ShibGateway.aspx?dest=ucsw&page=INTTRNS', 'https://login.canterbury.ac.nz/idp/profile/SAML2/Redirect/SSO', (response, body) => {
+        this._makeReq('https://myucgate.canterbury.ac.nz/ShibGateway.aspx?dest=ucsw&page=INTTRNS', 'https://login.canterbury.ac.nz/idp/profile/SAML2/Redirect/SSO', (response, body) => {
             let ssoValue = `SSO=${encodeURIComponent(ssoRegex.exec(body)[1])}`;
-            ExamWaiter._makeReq('https://myuc.canterbury.ac.nz/ucsms/sso_login.aspx', 'https://myucgate.canterbury.ac.nz/ShibGateway.aspx?dest=ucsw&page=INTTRNS', ssoValue, () => {
-                ExamWaiter._makeReq('https://myuc.canterbury.ac.nz/ucsms/Student/InternalStudentTranscript.aspx', 'https://myucgate.canterbury.ac.nz/ShibGateway.aspx?dest=ucsw&page=INTTRNS', (response, body) => {
+            this._makeReq('https://myuc.canterbury.ac.nz/ucsms/sso_login.aspx', 'https://myucgate.canterbury.ac.nz/ShibGateway.aspx?dest=ucsw&page=INTTRNS', ssoValue, () => {
+                this._makeReq('https://myuc.canterbury.ac.nz/ucsms/Student/InternalStudentTranscript.aspx', 'https://myucgate.canterbury.ac.nz/ShibGateway.aspx?dest=ucsw&page=INTTRNS', (response, body) => {
                     if (body.indexOf('myUC is temporarily unavailable') >= 0) {
                         if (self._timeout !== self._shortTimeout) {
                             self._timeout = self._shortTimeout;
@@ -115,27 +116,27 @@ class ExamWaiter extends events.EventEmitter {
             samlResponseRegex = /SAMLResponse" value="([^"]+)/igm,
             ssoRegex = /SSO' value='([^']+)/igm;
 
-        ExamWaiter._makeReq('https://myuc.canterbury.ac.nz', () => {
-            ExamWaiter._makeReq('https://myucgate.canterbury.ac.nz/ShibGateway.aspx?dest=myuc', 'https://myuc.canterbury.ac.nz/sitsvision/wrd/siw_ipp_lgn.login?process=siw_ipp_app&code1=PROFILE&code2=0001', () => {
-                ExamWaiter._makeReq('https://login.canterbury.ac.nz/idp/Authn/UserPassword', 'https://login.canterbury.ac.nz/idp/Authn/UserPassword', 'j_username=' + username + '&j_password=' + password, () => {
-                    ExamWaiter._makeReq('https://login.canterbury.ac.nz/idp/profile/SAML2/Redirect/SSO', 'https://login.canterbury.ac.nz/idp/Authn/UserPassword', (response, body) => {
+        this._makeReq('https://myuc.canterbury.ac.nz', () => {
+            this._makeReq('https://myucgate.canterbury.ac.nz/ShibGateway.aspx?dest=myuc', 'https://myuc.canterbury.ac.nz/sitsvision/wrd/siw_ipp_lgn.login?process=siw_ipp_app&code1=PROFILE&code2=0001', () => {
+                this._makeReq('https://login.canterbury.ac.nz/idp/Authn/UserPassword', 'https://login.canterbury.ac.nz/idp/Authn/UserPassword', 'j_username=' + username + '&j_password=' + password, () => {
+                    this._makeReq('https://login.canterbury.ac.nz/idp/profile/SAML2/Redirect/SSO', 'https://login.canterbury.ac.nz/idp/Authn/UserPassword', (response, body) => {
                         try {
                             let relayStateData = encodeURIComponent(htmlEntities.decode(relayStateRegex.exec(body)[1])),
                                 samlResponseData = encodeURIComponent(htmlEntities.decode(samlResponseRegex.exec(body)[1])),
                                 data = `RelayState=${relayStateData}&SAMLResponse=${samlResponseData}`;
 
-                            ExamWaiter._makeReq('https://myucgate.canterbury.ac.nz/Shibboleth.sso/SAML2/POST', 'https://login.canterbury.ac.nz/idp/profile/SAML2/Redirect/SSO', data, () => {
-                                ExamWaiter._makeReq('https://myucgate.canterbury.ac.nz/ShibGateway.aspx?dest=myuc', 'https://login.canterbury.ac.nz/idp/profile/SAML2/Redirect/SSO', (response, body) => {
+                            this._makeReq('https://myucgate.canterbury.ac.nz/Shibboleth.sso/SAML2/POST', 'https://login.canterbury.ac.nz/idp/profile/SAML2/Redirect/SSO', data, () => {
+                                this._makeReq('https://myucgate.canterbury.ac.nz/ShibGateway.aspx?dest=myuc', 'https://login.canterbury.ac.nz/idp/profile/SAML2/Redirect/SSO', (response, body) => {
                                     let ssoValue = `SSO=${encodeURIComponent(ssoRegex.exec(body)[1])}`;
 
-                                    ExamWaiter._makeReq('https://myuc.canterbury.ac.nz/sitsvision/wrd/siw_sso.signon', 'https://login.canterbury.ac.nz/idp/profile/SAML2/Redirect/SSO', ssoValue, () => {
+                                    this._makeReq('https://myuc.canterbury.ac.nz/sitsvision/wrd/siw_sso.signon', 'https://login.canterbury.ac.nz/idp/profile/SAML2/Redirect/SSO', ssoValue, () => {
                                         this._poll();
                                     });
                                 });
                             });
                         }
                         catch (e) {
-                            this.emit('loginFailure');
+                            this.emit('loginFailure', e);
                         }
                     });
                 });

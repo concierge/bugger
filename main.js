@@ -7,7 +7,7 @@ const getResults = (year, semester, api, event) => {
         throw new Error('Please use "configure" first.');
     }
     if (year && semester) {
-        api.sendMessage(`Getting results for ${year}-${semester}. Please note that if myuc is down this will not complete until it is up again.`, event.thread_id);
+        api.sendMessage(`Getting results for ${year}-S${semester}. Please note that if myuc is down this will not complete until it is up again.`, event.thread_id);
     }
     const waiter = new ExamWaiter(exports.config[event.sender_id].username, exports.config[event.sender_id].password, !(year && semester));
     waiter.on('results', (results) => {
@@ -26,11 +26,13 @@ const getResults = (year, semester, api, event) => {
         api.sendMessage(res, event.thread_id);
     });
 
-    waiter.on('loginFailure', () => {
+    waiter.on('loginFailure', (e) => {
         if (!api) {
             api = exports.platform.getIntegrationApis()[exports.config[event.sender_id].source];
         }
         api.sendMessage(`Hmmmm.... ${event.sender_name}, either your login details were incorrect or something is broken.`, event.thread_id);
+        console.log(e.stack)
+        console.critical(e);
     });
     if (!exports.config[event.sender_id].waiters) {
         exports.config[event.sender_id].waiters = [];
@@ -86,6 +88,12 @@ exports.run = (api, event) => {
                     out.log('What are you doing? I need a username and password.');
                 }
                 else {
+                    if (exports.config[event.sender_id] && exports.config[event.sender_id].waiters) {
+                        for (let waiter of exports.config[event.sender_id].waiters) {
+                            waiter.stop();
+                        }
+                    }
+
                     exports.config[event.sender_id] = {
                         source: event.event_source,
                         id: event.sender_id,
