@@ -1,6 +1,7 @@
 const args = require('concierge/arguments'),
     ExamWaiter = require('./detect.js'),
-    selector = require('./selector.js');
+    selector = require('./selector.js'),
+    waiters = {};
 
 const getResults = (year, semester, api, event) => {
     if (!exports.config[event.sender_id]) {
@@ -34,23 +35,20 @@ const getResults = (year, semester, api, event) => {
         console.log(e.stack)
         console.critical(e);
     });
-    if (!exports.config[event.sender_id].waiters) {
-        exports.config[event.sender_id].waiters = [];
+    if (!waiters[event.sender_id]) {
+        waiters[event.sender_id] = [];
     }
     if (year === null && semester === null) {
-        exports.config[event.sender_id].waiters.unshift(waiter);
+        waiters[event.sender_id].unshift(waiter);
     }
     else {
-        exports.config[event.sender_id].waiters.push(waiter);
+        waiters[event.sender_id].push(waiter);
     }
     waiter.start();
 };
 
 exports.load = (platform) => {
     for (let key in Object.keys(exports.config)) {
-        if (exports.config[key].waiters) {
-            delete exports.config[key].waiters;
-        }
         if (!exports.config[key].notify) {
             continue;
         }
@@ -66,13 +64,12 @@ exports.load = (platform) => {
 
 exports.unload = () => {
     for (let key in Object.keys(exports.config)) {
-        if (!exports.config[key].waiters) {
+        if (!waiters[key]) {
             continue;
         }
-        for (let waiter of exports.config[key].waiters) {
+        for (let waiter of waiters[key]) {
             waiter.stop();
         }
-        delete exports.config[key].waiters;
     }
 };
 
@@ -88,8 +85,8 @@ exports.run = (api, event) => {
                     out.log('What are you doing? I need a username and password.');
                 }
                 else {
-                    if (exports.config[event.sender_id] && exports.config[event.sender_id].waiters) {
-                        for (let waiter of exports.config[event.sender_id].waiters) {
+                    if (exports.config[event.sender_id] && waiters[event.sender_id]) {
+                        for (let waiter of waiters[event.sender_id]) {
                             waiter.stop();
                         }
                     }
@@ -111,8 +108,8 @@ exports.run = (api, event) => {
             description: 'Delete all configuration for your user.',
             run: (out) => {
                 if (exports.config[event.sender_id]) {
-                    if (exports.config[key].waiters) {
-                        for (let waiter of exports.config[key].waiters) {
+                    if (waiters[key]) {
+                        for (let waiter of waiters[key]) {
                             waiter.stop();
                         }
                     }
@@ -162,7 +159,7 @@ exports.run = (api, event) => {
                 }
                 delete exports.config[event.sender_id].notify;
                 out.log('Consider it stopped.');
-                const notify = exports.config[event.sender_id].waiters.shift();
+                const notify = waiters[event.sender_id].shift();
                 notify.stop();
             }
         }
